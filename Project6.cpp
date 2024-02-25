@@ -172,8 +172,7 @@ float	Scale;					// scaling factor
 float	Time;					// used for animation, this has a value between 0. and 1.
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
-
-int		SphereList;
+GLuint DragonList;
 
 
 // function prototypes:
@@ -256,7 +255,7 @@ MulArray3(float factor, float a, float b, float c )
 //#include "osucone.cpp"
 //#include "osutorus.cpp"
 //#include "bmptotexture.cpp"
-//#include "loadobjfile.cpp"
+#include "loadobjfile.cpp"
 #include "keytime.cpp"
 #include "glslprogram.cpp"
 
@@ -379,7 +378,7 @@ Display( )
 
 	// set the eye position, look-at position, and up-vector:
 
-	gluLookAt( 0.f, 0.f, 3.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
+	gluLookAt( 0.f, 3.f, 3.f,     0.f, 0.f, 0.f,     0.f, 1.f, 0.f );
 
 	// rotate the scene:
 
@@ -417,7 +416,7 @@ Display( )
 	Pattern.SetUniformVariable( (char *)"uT0", NowT0 );
 	Pattern.SetUniformVariable( (char *)"uD" , NowD  );
 
-	glCallList( SphereList );
+	glCallList(DragonList);
 
 	Pattern.UnUse( );       // Pattern.Use(0);  also works
 
@@ -752,9 +751,13 @@ InitLists( )
 
 	// create the object:
 
-	SphereList = glGenLists( 1 );
-	glNewList( SphereList, GL_COMPILE );
-		OsuSphere( 1., 64, 64 );
+	DragonList = glGenLists( 1 );
+	glNewList( DragonList, GL_COMPILE );
+			glScalef(0.10,0.1,0.1);
+			glTranslatef(0,-10,0);
+
+		LoadObjFile("dragon037.obj");
+
 	glEndList( );
 
 
