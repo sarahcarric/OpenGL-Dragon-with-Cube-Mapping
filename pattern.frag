@@ -1,46 +1,3 @@
-varying vec3 fragPos;
-//got this from https://github.com/MaxBittker/glsl-voronoi-noise/blob/master/3d.glsl
-vec3 genPsuedoRandom(vec3 pos){
-	 return fract(
-       sin(vec3(dot(pos, vec3(1.0, 57.0, 113.0)), 
-	   dot(pos, vec3(57.0, 113.0, 1.0)), 
-	   dot(pos, vec3(113.0, 1.0, 57.0)))) *
-       	 43758.5453);
-}
-
-vec3 voronoi3d(vec3 samPoint) {
-  vec3 gridPoint = floor(samPoint);
-  vec3 fraction = fract(samPoint);
-
-  float id = 0.0;
-  vec2 result = vec2(100.0);
- 
-  for (int k = -1; k <= 1; k++) {
-    for (int j = -1; j <= 1; j++) {
-      for (int i = -1; i <= 1; i++) {
-        
-		vec3 offset = vec3(float(i), float(j), float(k));
-        vec3 cellPoint = vec3(offset) - fraction + genPsuedoRandom(gridPoint + offset);
-        float distance = dot(cellPoint, cellPoint);
-
-        float condition = max(sign(result.x - distance), 0.0);
-        float invertCond = 1.0 - condition;
-
-       	float condition2 = invertCond * max(sign(result.y - distance), 0.0);
-        float invertCond2 = 1.0 - condition2;
-
-       	id = (dot(gridPoint + offset, vec3(1.0, 57.0, 113.0)) * condition) + (id * invertCond);
-       	result = vec2(distance, result.x) * condition + result * invertCond;
-
-       result.y = condition2 * distance + invertCond2 * result.y;
-     }
-    }
-  }
-
-	return vec3(sqrt(result), abs(id));
-}
-
-
 // lighting uniform variables -- these can be set once and left alone:
 uniform float   uKa, uKd, uKs;	 // coefficients of each type of lighting -- make sum to 1.0
 uniform vec3    uColor;		 // object color
@@ -59,24 +16,85 @@ varying  vec3  vE;		   // vector from point to eye
 varying  vec2  vST;		   // (s,t) texture coordinates
 
 
+float uAd=0.2; 
+float uBd=0.2;
+float uTol=0.5;
+uniform float uNoiseAmp,uNoiseFreq;
+uniform bool uUseXYZforNoise;
+const vec3 ORANGE = vec3( 1., .5, 0. );
+const vec3 WHITE  = vec3( 1., 1., 1.);
+uniform sampler3D Noise3;
+varying vec3 vMCposition;
+vec4 nv;
+
+
+
+
 void
 main( )
 {
-	float s = vST.s;
-	float t = vST.t;
+	//taken from assignment description
+	if(uUseXYZforNoise){
+ 		nv=texture3D(Noise3, uNoiseFreq * vMCposition);
+	}
+	else{
+			nv=texture3D(Noise3, uNoiseFreq* vec3(vST,0.));
+	}
+	float n= nv.r+ nv.g + nv.b + nv.a; 
+	
+	n = n - 2.;
+	n*=uNoiseAmp;
 
-	// determine the color using the square-boundary equations:
-
-	vec3 myColor = uColor;
-
-	// apply the per-fragmewnt lighting to myColor:
 
 	vec3 Normal = normalize(vN);
-	vec3 Light  = normalize(vL);
-	vec3 Eye    = normalize(vE);
-	vec3 fragPosNormalized = normalize(fragPos);
-    vec3 voronoiResult = voronoi3d(fragPosNormalized);
+	vec3 Light = normalize(vL);
+	vec3 Eye = normalize(vE);
+	vec3 myColor=vec3(0.0,1.0,0.0);
+	vec3 mySpecularColor = vec3(1.,1.,1.);	// whatever default color you'd like
 
-    gl_FragColor= vec4(voronoiResult, 1.0);
+	//all from last assignment
+	float Ar = uAd/2.;
+	float Br = uBd/2.;
+	
+	int numins = int( vST.s / uAd ); 
+	int numint = int( vST.t / uBd ); 
+	
+	float sc = float(numins) *uAd + Ar; 
+	float tc = float(numint) *uBd + Br;
+	
+	float ds = ( vST.s - sc );
+	float dt=(vST.t-tc);
+	
+	float oldDist = sqrt((ds*ds) + (dt*dt)); 
+	float newDist = oldDist + n;
+
+	float scale = newDist / oldDist;
+
+	ds *= scale;
+	ds /= Ar;
+	dt *= scale;
+	dt /= Br;
+
+	float d = (ds * ds) + (dt * dt);
+	
+	float t = smoothstep( 1. - uTol, 1. + uTol, d);
+	
+	myColor = mix( ORANGE, WHITE, t );
+
+
+	vec3 ambient = uKa * myColor;
+
+	float dd = max( dot(Normal,Light), 0. );       // only do diffuse if the light can see the point
+	vec3 diffuse = uKd * dd * myColor;
+
+	float ss = 0.;
+	if( dot(Normal,Light) > 0. )	      // only do specular if the light can see the point
+	{
+		vec3 ref = normalize(  reflect( -Light, Normal )  );
+		ss = pow( max( dot(Eye,ref),0. ), uShininess );
+	}
+	vec3 specular = uKs * ss * uSpecularColor;
+	gl_FragColor = vec4( ambient + diffuse + specular,  1. );
 }
+
 

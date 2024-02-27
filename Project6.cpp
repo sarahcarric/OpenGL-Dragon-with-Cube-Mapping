@@ -48,7 +48,7 @@
 
 // title of these windows:
 
-const char *WINDOWTITLE = "OpenGL / GLUT Sample -- Joe Graphics";
+const char *WINDOWTITLE = "OpenGL / Project 6 -- Sarah Carricaburu";
 const char *GLUITITLE   = "User Interface Window";
 
 // what the glui package defines as true and false:
@@ -173,7 +173,7 @@ float	Time;					// used for animation, this has a value between 0. and 1.
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 GLuint DragonList;
-
+const int MSEC=10000;
 
 // function prototypes:
 
@@ -193,6 +193,7 @@ void	InitMenus( );
 void	Keyboard( unsigned char, int, int );
 void	MouseButton( int, int, int, int );
 void	MouseMotion( int, int );
+unsigned char * ReadTexture3D(char*, int*, int*, int*);
 void	Reset( );
 void	Resize( int, int );
 void	Visibility( int );
@@ -258,7 +259,8 @@ MulArray3(float factor, float a, float b, float c )
 #include "loadobjfile.cpp"
 #include "keytime.cpp"
 #include "glslprogram.cpp"
-
+Keytimes NoiseAmp, NoiseFreq;
+GLuint Noise3; 
 float NowS0, NowT0, NowD;
 GLSLProgram Pattern;
 
@@ -402,6 +404,10 @@ Display( )
 	// since we are using glScalef( ), be sure the normals get unitized:
 
 	glEnable( GL_NORMALIZE );
+	glActiveTexture( GL_TEXTURE3 );
+	glBindTexture(GL_TEXTURE_3D, Noise3 );
+
+
 
 	// draw the box object by calling up its display list:
 
@@ -409,13 +415,19 @@ Display( )
 
 	// set the uniform variables that will change over time:
 
-	NowS0 = 0.5f;
-	NowT0 = 0.5f;
-	NowD  = 0.25f;
-	Pattern.SetUniformVariable( (char *)"uS0", NowS0 );
-	Pattern.SetUniformVariable( (char *)"uT0", NowT0 );
-	Pattern.SetUniformVariable( (char *)"uD" , NowD  );
+	Pattern.SetUniformVariable("Noise3", 3);
 
+		// turn # msec into the cycle ( 0 - MSEC-1 ):
+    int msec = glutGet( GLUT_ELAPSED_TIME )  %  MSEC;
+
+//   turn that into a time in seconds:
+    float nowTime = (float)msec  / 1000.0f;
+	
+	//setting uNoiseAmp and uNoiseFreq
+	Pattern.SetUniformVariable((char*)"uNoiseAmp", NoiseAmp.GetValue( nowTime ));
+	Pattern.SetUniformVariable((char*)"uNoiseFreq", NoiseFreq.GetValue(nowTime));
+	
+   
 	glCallList(DragonList);
 
 	Pattern.UnUse( );       // Pattern.Use(0);  also works
@@ -700,6 +712,20 @@ InitGraphics( )
 	// but, this sets us up nicely for doing animation
 
 	glutIdleFunc( Animate );
+	 NoiseAmp.Init( );
+        NoiseAmp.AddTimeValue(  0.0, 0.0);
+        NoiseAmp.AddTimeValue(  2.0,  0.2 );
+        NoiseAmp.AddTimeValue(  5.0,  0.5 );
+        NoiseAmp.AddTimeValue(  8.0,  0.7);
+        NoiseAmp.AddTimeValue( 10.0,  0.9);
+
+	 NoiseFreq.Init( );
+        NoiseFreq.AddTimeValue(  0.0, 0.0);
+        NoiseFreq.AddTimeValue(  2.0,  2.0 );
+        NoiseFreq.AddTimeValue(  5.0,  5.0 );
+        NoiseFreq.AddTimeValue(  8.0,  7.0);
+        NoiseFreq.AddTimeValue( 10.0,  9.0);
+	
 
 	// init the glew package (a window must be open to do this):
 
@@ -715,6 +741,22 @@ InitGraphics( )
 #endif
 
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
+	glGenTextures(1, &Noise3);
+	glBindTexture(GL_TEXTURE_3D, Noise3);
+	glPixelStorei(GL_UNPACK_ALIGNMENT,1);
+	glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT); 
+	glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	int nums, numt, nump;
+	//reading the texture
+	unsigned char * texture = ReadTexture3D( "noise3d.064.tex", &nums, &numt, &nump);
+	//loading the texture
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, nums, numt, nump, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+
+	// Unbind the texture
+	glBindTexture(GL_TEXTURE_3D, 0);
 
 	Pattern.Init( );
 	bool valid = Pattern.Create( (char *)"pattern.vert", (char *)"pattern.frag" );
@@ -726,6 +768,9 @@ InitGraphics( )
 	// set the uniform variables that will not change:
 	
 	Pattern.Use( );
+	Pattern.SetUniformVariable( (char *)"uKa", 0.1f );
+	Pattern.SetUniformVariable( (char *)"uKd", 0.5f );
+	Pattern.SetUniformVariable( (char *)"uKs", 0.4f );
 	Pattern.SetUniformVariable( (char *)"uColor", 1.f, 0.5f, 0.f );
 	Pattern.SetUniformVariable( (char *)"uSpecularColor", 1.f, 1.f, 1.f );
 	Pattern.SetUniformVariable( (char *)"uShininess", 12.f );
@@ -876,6 +921,8 @@ MouseButton( int button, int state, int x, int y )
 }
 
 
+
+
 // called when the mouse moves while a button is down:
 
 void
@@ -911,7 +958,26 @@ MouseMotion( int x, int y )
 // reset the transformations and the colors:
 // this only sets the global variables --
 // the glut main loop is responsible for redrawing the scene
-
+//taken directly from lecture slides
+unsigned char * ReadTexture3D( char *filename, int *width, int *height, int *depth) {
+	FILE *fp = fopen(filename, "rb"); 
+	if( fp == NULL )
+		return NULL;
+	
+	int nums, numt, nump;
+	
+	fread(&nums, 4, 1, fp);
+	fread(&numt, 4, 1, fp);
+	fread(&nump, 4, 1, fp);
+	
+	*width = nums; 
+	*height = numt; 
+	*depth = nump;
+	
+	unsigned char * texture = new unsigned char[ 4 * nums * numt * nump ];
+	fread(texture, 4 * nums * numt * nump, 1, fp); fclose(fp);
+	return texture;
+}
 void
 Reset( )
 {
