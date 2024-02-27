@@ -4,7 +4,8 @@ varying  vec3  vN;	  // normal vector
 varying  vec3  vL;	  // vector from point to light
 varying  vec3  vE;	  // vector from point to eye
 varying  vec2  vST;	  // (s,t) texture coordinates
-
+varying vec3 fragPos;
+varying vec3 inPos;
 // where the light is:
 
 const vec3 LightPosition = vec3(  0., 5., 5. );
@@ -19,5 +20,6 @@ main( )
 							// to the light position
 	vE = vec3( 0., 0., 0. ) - ECposition.xyz;       // vector from the point
 							// to the eye position
-	gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
+	 gl_Position = gl_ModelViewProjectionMatrix* gl_Vertex;
+    fragPos = inPos;
 }

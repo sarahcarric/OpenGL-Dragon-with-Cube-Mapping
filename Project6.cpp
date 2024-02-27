@@ -726,9 +726,6 @@ InitGraphics( )
 	// set the uniform variables that will not change:
 	
 	Pattern.Use( );
-	Pattern.SetUniformVariable( (char *)"uKa", 0.1f );
-	Pattern.SetUniformVariable( (char *)"uKd", 0.5f );
-	Pattern.SetUniformVariable( (char *)"uKs", 0.4f );
 	Pattern.SetUniformVariable( (char *)"uColor", 1.f, 0.5f, 0.f );
 	Pattern.SetUniformVariable( (char *)"uSpecularColor", 1.f, 1.f, 1.f );
 	Pattern.SetUniformVariable( (char *)"uShininess", 12.f );
@@ -755,8 +752,7 @@ InitLists( )
 	glNewList( DragonList, GL_COMPILE );
 			glScalef(0.10,0.1,0.1);
 			glTranslatef(0,-10,0);
-
-		LoadObjFile("dragon037.obj");
+			LoadObjFile("dragon037.obj");
 
 	glEndList( );
 
