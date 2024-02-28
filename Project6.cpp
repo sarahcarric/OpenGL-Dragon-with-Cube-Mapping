@@ -174,7 +174,15 @@ int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 GLuint DragonList;
 const int MSEC=10000;
-
+char * FaceFiles[6] =
+{
+	"kec.posx.bmp",
+	"kec.negx.bmp",
+	"kec.posy.bmp",
+	"kec.negy.bmp",
+	"kec.posz.bmp",
+	"kec.negz.bmp"
+};
 // function prototypes:
 
 void	Animate( );
@@ -255,12 +263,13 @@ MulArray3(float factor, float a, float b, float c )
 #include "osusphere.cpp"
 //#include "osucone.cpp"
 //#include "osutorus.cpp"
-//#include "bmptotexture.cpp"
+#include "bmptotexture.cpp"
 #include "loadobjfile.cpp"
 #include "keytime.cpp"
 #include "glslprogram.cpp"
 Keytimes NoiseAmp, NoiseFreq;
 GLuint Noise3; 
+GLuint CubeName;
 float NowS0, NowT0, NowD;
 GLSLProgram Pattern;
 
@@ -422,10 +431,27 @@ Display( )
 
 //   turn that into a time in seconds:
     float nowTime = (float)msec  / 1000.0f;
+
+	int uReflectUnit = 6; 
+	int uRefractUnit = 7; 
+	float uEta = 1.9f; 
+	float uTol = 0.f;
+	float uMix = 0.4f;
+	glActiveTexture( GL_TEXTURE0 + uReflectUnit ); 
+	glBindTexture( GL_TEXTURE_CUBE_MAP, CubeName ); 
+	glActiveTexture( GL_TEXTURE0 + uRefractUnit ); 
+	glBindTexture( GL_TEXTURE_CUBE_MAP, CubeName );
 	
+	Pattern.SetUniformVariable( "uReflectUnit", uReflectUnit ); 
+	
+	Pattern.SetUniformVariable( "uRefractUnit", uRefractUnit ); 
+
 	//setting uNoiseAmp and uNoiseFreq
 	Pattern.SetUniformVariable((char*)"uNoiseAmp", NoiseAmp.GetValue( nowTime ));
 	Pattern.SetUniformVariable((char*)"uNoiseFreq", NoiseFreq.GetValue(nowTime));
+
+	Pattern.SetUniformVariable( "uEta", uEta );
+
 	
    
 	glCallList(DragonList);
@@ -739,6 +765,25 @@ InitGraphics( )
 		fprintf( stderr, "GLEW initialized OK\n" );
 	fprintf( stderr, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 #endif
+	glGenTextures( 1, &CubeName );
+	glBindTexture( GL_TEXTURE_CUBE_MAP, CubeName );
+	glTexParameterf( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	glTexParameterf( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	glTexParameterf( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_REPEAT );
+	glTexParameterf( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexParameterf( GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	for( int file = 0; file < 6; file++ )
+	{
+		int nums, numt;
+		unsigned char * texture2d = BmpToTexture( FaceFiles[file], &nums, &numt );
+		if( texture2d == NULL )
+			fprintf( stderr, "Could not open BMP 2D texture '%s'", FaceFiles[file] );
+		else
+			fprintf( stderr, "BMP 2D texture '%s' read -- nums = %d, numt = %d\n", FaceFiles[file], nums, numt );
+		glTexImage2D( GL_TEXTURE_CUBE_MAP_POSITIVE_X + file, 0, 3, nums, numt, 0,
+			GL_RGB, GL_UNSIGNED_BYTE, texture2d );
+		delete [ ] texture2d;
+	}
 
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
 	glGenTextures(1, &Noise3);

@@ -1,100 +1,77 @@
-// lighting uniform variables -- these can be set once and left alone:
-uniform float   uKa, uKd, uKs;	 // coefficients of each type of lighting -- make sum to 1.0
-uniform vec3    uColor;		 // object color
-uniform vec3    uSpecularColor;	 // light color
-uniform float   uShininess;	 // specular exponent
+#version 120
+uniform sampler3D	Noise3;
+uniform float 		uNoiseAmp;
+uniform float 		uNoiseFreq;
+uniform float		uEta;
+uniform float 		uMix;
+uniform float 		uWhiteMix;
+uniform samplerCube uReflectUnit;
+uniform samplerCube uRefractUnit;
 
-// square-equation uniform variables -- these should be set every time Display( ) is called:
+varying vec3	vMC;
+varying vec3	vNs;
+varying vec3	vEs;
+varying vec2	vST;
 
-uniform float   uS0, uT0, uD;
+const vec3  WHITE = vec3( 1.,1.,1.);
 
-// in variables from the vertex shader and interpolated in the rasterizer:
+vec3
+RotateNormal( float angx, float angy, vec3 n )
+{
+	float cx = cos( angx );
+	float sx = sin( angx );
+	float cy = cos( angy );
+	float sy = sin( angy );
+	
+	// rotate about x:
+	float yp =  n.y*cx - n.z*sx;	// y'
+	n.z      =  n.y*sx + n.z*cx;	// z'
+	n.y      =  yp;
 
-varying  vec3  vN;		   // normal vector
-varying  vec3  vL;		   // vector from point to light
-varying  vec3  vE;		   // vector from point to eye
-varying  vec2  vST;		   // (s,t) texture coordinates
+	// rotate about y:
+	float xp =  n.x*cy + n.z*sy;	// x'
+	n.z      = -n.x*sy + n.z*cy;	// z'
+	n.x      =  xp;
 
-
-float uAd=0.2; 
-float uBd=0.2;
-float uTol=0.5;
-uniform float uNoiseAmp,uNoiseFreq;
-uniform bool uUseXYZforNoise;
-const vec3 ORANGE = vec3( 1., .5, 0. );
-const vec3 WHITE  = vec3( 1., 1., 1.);
-uniform sampler3D Noise3;
-varying vec3 vMCposition;
-vec4 nv;
-
-
+	return normalize( n );
+}
 
 
 void
 main( )
 {
-	//taken from assignment description
-	if(uUseXYZforNoise){
- 		nv=texture3D(Noise3, uNoiseFreq * vMCposition);
-	}
-	else{
-			nv=texture3D(Noise3, uNoiseFreq* vec3(vST,0.));
-	}
-	float n= nv.r+ nv.g + nv.b + nv.a; 
+	vec3 Normal = normalize(vNs);
+	vec3 Eye =    normalize(vEs);
+
+	vec4 nvx = texture3D( Noise3, uNoiseFreq*vMC );
+	vec4 nvy = texture3D( Noise3, uNoiseFreq*vec3(vMC.xy,vMC.z+0.5) );
+
+	float angx = nvx.r + nvx.g + nvx.b + nvx.a;	//  1. -> 3.
+	angx = angx - 2.;				// -1. -> 1.
+	angx *= uNoiseAmp;
+
+	float angy = nvy.r + nvy.g + nvy.b + nvy.a;	//  1. -> 3.
+	angy = angy - 2.;				// -1. -> 1.
+	angy *= uNoiseAmp;
+
+	Normal = RotateNormal( angx, angy, Normal );
+	Normal = normalize( gl_NormalMatrix * Normal );
+
+	vec3 reflectVector = reflect(Eye, Normal );
+	vec3 reflectColor = textureCube( uReflectUnit, reflectVector ).rgb;
+
+
+	vec3 refractVector = refract( Eye, Normal, uEta ); 
 	
-	n = n - 2.;
-	n*=uNoiseAmp;
-
-
-	vec3 Normal = normalize(vN);
-	vec3 Light = normalize(vL);
-	vec3 Eye = normalize(vE);
-	vec3 myColor=vec3(0.0,1.0,0.0);
-	vec3 mySpecularColor = vec3(1.,1.,1.);	// whatever default color you'd like
-
-	//all from last assignment
-	float Ar = uAd/2.;
-	float Br = uBd/2.;
+	vec3 refractColor;
+	if(all( equal( refractVector, vec3(0.,0.,0.) ) ) ){
+		refractColor = reflectColor;
+	} 
 	
-	int numins = int( vST.s / uAd ); 
-	int numint = int( vST.t / uBd ); 
-	
-	float sc = float(numins) *uAd + Ar; 
-	float tc = float(numint) *uBd + Br;
-	
-	float ds = ( vST.s - sc );
-	float dt=(vST.t-tc);
-	
-	float oldDist = sqrt((ds*ds) + (dt*dt)); 
-	float newDist = oldDist + n;
+	refractColor = textureCube( uRefractUnit, refractVector ).rgb; 
+	refractColor = mix(refractColor, WHITE, uWhiteMix );
 
-	float scale = newDist / oldDist;
-
-	ds *= scale;
-	ds /= Ar;
-	dt *= scale;
-	dt /= Br;
-
-	float d = (ds * ds) + (dt * dt);
-	
-	float t = smoothstep( 1. - uTol, 1. + uTol, d);
-	
-	myColor = mix( ORANGE, WHITE, t );
-
-
-	vec3 ambient = uKa * myColor;
-
-	float dd = max( dot(Normal,Light), 0. );       // only do diffuse if the light can see the point
-	vec3 diffuse = uKd * dd * myColor;
-
-	float ss = 0.;
-	if( dot(Normal,Light) > 0. )	      // only do specular if the light can see the point
-	{
-		vec3 ref = normalize(  reflect( -Light, Normal )  );
-		ss = pow( max( dot(Eye,ref),0. ), uShininess );
-	}
-	vec3 specular = uKs * ss * uSpecularColor;
-	gl_FragColor = vec4( ambient + diffuse + specular,  1. );
+	vec3 color = mix( refractColor, reflectColor, uMix ); 
+	color = mix( color, WHITE, uWhiteMix ); 
+	gl_FragColor = vec4(color, 1. );
 }
-
-
