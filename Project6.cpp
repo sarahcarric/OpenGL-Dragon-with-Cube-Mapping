@@ -447,14 +447,13 @@ Display( )
 	Pattern.SetUniformVariable( "uRefractUnit", uRefractUnit ); 
 
 	//setting uNoiseAmp and uNoiseFreq
-	Pattern.SetUniformVariable((char*)"uNoiseAmp", NoiseAmp.GetValue( nowTime ));
-	Pattern.SetUniformVariable((char*)"uNoiseFreq", NoiseFreq.GetValue(nowTime));
+	Pattern.SetUniformVariable((char*)"uNoiseAmp", 1);
+	Pattern.SetUniformVariable((char*)"uNoiseFreq",1);
 
 	Pattern.SetUniformVariable( "uEta", uEta );
 
-	
-   
-	glCallList(DragonList);
+		glCallList(DragonList);
+
 
 	Pattern.UnUse( );       // Pattern.Use(0);  also works
 
@@ -785,6 +784,9 @@ InitGraphics( )
 		delete [ ] texture2d;
 	}
 
+
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
 	// all other setups go here, such as GLSLProgram and KeyTime setups:
 	glGenTextures(1, &Noise3);
 	glBindTexture(GL_TEXTURE_3D, Noise3);
@@ -819,6 +821,8 @@ InitGraphics( )
 	Pattern.SetUniformVariable( (char *)"uColor", 1.f, 0.5f, 0.f );
 	Pattern.SetUniformVariable( (char *)"uSpecularColor", 1.f, 1.f, 1.f );
 	Pattern.SetUniformVariable( (char *)"uShininess", 12.f );
+
+
 	Pattern.UnUse( );
 }
 
