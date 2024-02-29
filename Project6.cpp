@@ -201,7 +201,6 @@ void	InitMenus( );
 void	Keyboard( unsigned char, int, int );
 void	MouseButton( int, int, int, int );
 void	MouseMotion( int, int );
-unsigned char * ReadTexture3D(char*, int*, int*, int*);
 void	Reset( );
 void	Resize( int, int );
 void	Visibility( int );
@@ -268,7 +267,6 @@ MulArray3(float factor, float a, float b, float c )
 #include "keytime.cpp"
 #include "glslprogram.cpp"
 Keytimes NoiseAmp, NoiseFreq;
-GLuint Noise3; 
 GLuint CubeName;
 float NowS0, NowT0, NowD;
 GLSLProgram Pattern;
@@ -403,28 +401,20 @@ Display( )
 	glScalef( (GLfloat)Scale, (GLfloat)Scale, (GLfloat)Scale );
 
 	// possibly draw the axes:
-
 	if( AxesOn != 0 )
 	{
 		glColor3fv( &Colors[NowColor][0] );
-		glCallList( AxesList );
 	}
 
 	// since we are using glScalef( ), be sure the normals get unitized:
 
 	glEnable( GL_NORMALIZE );
-	glActiveTexture( GL_TEXTURE3 );
-	glBindTexture(GL_TEXTURE_3D, Noise3 );
-
-
 
 	// draw the box object by calling up its display list:
 
 	Pattern.Use( );
 
-	// set the uniform variables that will change over time:
-
-	Pattern.SetUniformVariable("Noise3", 3);
+	// set the uniform variables that will change over time
 
 		// turn # msec into the cycle ( 0 - MSEC-1 ):
     int msec = glutGet( GLUT_ELAPSED_TIME )  %  MSEC;
@@ -435,8 +425,6 @@ Display( )
 	int uReflectUnit = 6; 
 	int uRefractUnit = 7; 
 	float uEta = 1.9f; 
-	float uTol = 0.f;
-	float uMix = 0.4f;
 	glActiveTexture( GL_TEXTURE0 + uReflectUnit ); 
 	glBindTexture( GL_TEXTURE_CUBE_MAP, CubeName ); 
 	glActiveTexture( GL_TEXTURE0 + uRefractUnit ); 
@@ -446,13 +434,9 @@ Display( )
 	
 	Pattern.SetUniformVariable( "uRefractUnit", uRefractUnit ); 
 
-	//setting uNoiseAmp and uNoiseFreq
-	Pattern.SetUniformVariable((char*)"uNoiseAmp", 1);
-	Pattern.SetUniformVariable((char*)"uNoiseFreq",1);
-
 	Pattern.SetUniformVariable( "uEta", uEta );
 
-		glCallList(DragonList);
+	glCallList(DragonList);
 
 
 	Pattern.UnUse( );       // Pattern.Use(0);  also works
@@ -737,19 +721,7 @@ InitGraphics( )
 	// but, this sets us up nicely for doing animation
 
 	glutIdleFunc( Animate );
-	 NoiseAmp.Init( );
-        NoiseAmp.AddTimeValue(  0.0, 0.0);
-        NoiseAmp.AddTimeValue(  2.0,  0.2 );
-        NoiseAmp.AddTimeValue(  5.0,  0.5 );
-        NoiseAmp.AddTimeValue(  8.0,  0.7);
-        NoiseAmp.AddTimeValue( 10.0,  0.9);
 
-	 NoiseFreq.Init( );
-        NoiseFreq.AddTimeValue(  0.0, 0.0);
-        NoiseFreq.AddTimeValue(  2.0,  2.0 );
-        NoiseFreq.AddTimeValue(  5.0,  5.0 );
-        NoiseFreq.AddTimeValue(  8.0,  7.0);
-        NoiseFreq.AddTimeValue( 10.0,  9.0);
 	
 
 	// init the glew package (a window must be open to do this):
@@ -787,23 +759,6 @@ InitGraphics( )
 
 	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 
-	// all other setups go here, such as GLSLProgram and KeyTime setups:
-	glGenTextures(1, &Noise3);
-	glBindTexture(GL_TEXTURE_3D, Noise3);
-	glPixelStorei(GL_UNPACK_ALIGNMENT,1);
-	glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-	glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT); 
-	glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glTexParameteri( GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	int nums, numt, nump;
-	//reading the texture
-	unsigned char * texture = ReadTexture3D( "noise3d.064.tex", &nums, &numt, &nump);
-	//loading the texture
-	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA, nums, numt, nump, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
-
-	// Unbind the texture
-	glBindTexture(GL_TEXTURE_3D, 0);
 
 	Pattern.Init( );
 	bool valid = Pattern.Create( (char *)"pattern.vert", (char *)"pattern.frag" );
@@ -1007,26 +962,7 @@ MouseMotion( int x, int y )
 // reset the transformations and the colors:
 // this only sets the global variables --
 // the glut main loop is responsible for redrawing the scene
-//taken directly from lecture slides
-unsigned char * ReadTexture3D( char *filename, int *width, int *height, int *depth) {
-	FILE *fp = fopen(filename, "rb"); 
-	if( fp == NULL )
-		return NULL;
-	
-	int nums, numt, nump;
-	
-	fread(&nums, 4, 1, fp);
-	fread(&numt, 4, 1, fp);
-	fread(&nump, 4, 1, fp);
-	
-	*width = nums; 
-	*height = numt; 
-	*depth = nump;
-	
-	unsigned char * texture = new unsigned char[ 4 * nums * numt * nump ];
-	fread(texture, 4 * nums * numt * nump, 1, fp); fclose(fp);
-	return texture;
-}
+
 void
 Reset( )
 {

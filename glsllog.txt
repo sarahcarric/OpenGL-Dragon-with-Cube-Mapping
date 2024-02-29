@@ -1,3 +1,4 @@
 
-ERROR: 0:72: 'else' : syntax error: syntax error
+ERROR: 0:98: Use of undeclared identifier 'angx'
+ERROR: 0:98: Use of undeclared identifier 'angy'
 

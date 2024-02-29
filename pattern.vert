@@ -21,26 +21,35 @@ main( )
 	float drdx=x/r;
 	float drdy=y/r;
 
-
+	// Calculate the derivative of the surface function with respect to r
 	float e=-sin(2.*PI*uB*r+uC) * (2.*PI*uB * exp(-uD*r)) + (cos(2.*PI*uB*r+uC) * -uD * exp(-uD*r)); 
 
+	// Calculate the derivative of z with respect to r
 	float dzdr = uA * e;
+
+	// Update the z-coordinate of the vertex
 	vec4 newVertex = gl_Vertex;
 	newVertex.z =uA * cos(2*PI*uB*r+uC)*exp(-uD*r);
 
+	 // Transform vertex to eye coordinates
 	vec4 ECposition = gl_ModelViewMatrix * gl_Vertex; ;
 
-		
+	// Calculate the derivatives of z with respect to x and y
 	float dzdx = dzdr * drdx;
 	float dzdy = dzdr * drdy;
-		
+	
+	// Calculate tangent vectors in the x and y directions
 	vec3 xtangent = vec3(1., 0., dzdx );
 	vec3 ytangent = vec3(0., 1., dzdy );
 
+	// Calculate the new normal vector
 	vec3 newNormal =normalize( cross(xtangent, ytangent ));
 	vNs = newNormal;
+
+	 // Calculate the eye vector
 	vEs = ECposition.xyz - vec3( 0., 0., 0. ) ; 
-					// vector from the eye position to the point
+	
+	// Calculate the light vector
 	vL = LIGHTPOSITION - ECposition.xyz; 
 		
 	//makes the dragon 3D
